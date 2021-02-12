@@ -237,7 +237,7 @@ Chewy.settings = {
         field :projects do
           field :title
           field :description
-        en
+        end
         field :about_translations, type: 'object' # pass object type explicitly if necessary
         field :rating, type: 'integer'
         field :created, type: 'date', include_in_all: false,
