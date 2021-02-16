@@ -20,6 +20,13 @@ ActiveRecord::Schema.define do
     t.column :rating, :integer
     t.column :updated_at, :datetime
   end
+
+  create_table :comments do |t|
+    t.column :content, :string
+    t.column :join_field, :string
+    t.column :parent, :integer
+    t.column :updated_at, :datetime
+  end
 end
 
 module ActiveRecordClassHelpers

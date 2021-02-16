@@ -175,6 +175,65 @@ describe Chewy::Type::Import::BulkBuilder do
         end
       end
     end
+
+    context 'with parents' do
+      let(:type) { CommentsIndex::Comment }
+
+      before do
+        stub_model(:comment)
+        stub_index(:comments) do
+          define_type Comment do
+            field :content
+            #TODO extract `join` type handling to the production chewy code to make it reusable
+            field :join_field, type: :join, relations: {question: :answer}, value: -> { parent.present? ? {name: :answer, parent: parent} : :question }
+          end
+        end
+      end
+
+      let(:comments) do
+        [
+          Comment.create!(id: 1, content: 'What is the sense of the universe?', join_field: :question),
+          Comment.create!(id: 2, content: 'I don\'t know.', join_field: :answer, parent: 1),
+          Comment.create!(id: 3, content: '42', join_field: :answer, parent: 1),
+          Comment.create!(id: 4, content: 'How are you?', join_field: :question)
+        ]
+      end
+
+      context do
+        let(:index) { comments }
+
+        specify do
+          expect(subject.bulk_body).to eq([
+            {index: {_id: 1, data: {'content' => 'What is the sense of the universe?', 'join_field' => 'question'}}},
+            {index: {_id: 2, data: {'content' => 'I don\'t know.', 'join_field' => {'name' => 'answer', 'parent' => 1}}}},
+            {index: {_id: 3, data: {'content' => '42', 'join_field' => {'name' => 'answer', 'parent' => 1}}}},
+            {index: {_id: 4, data: {'content' => 'How are you?', 'join_field' => 'question'}}}
+          ])
+        end
+      end
+
+      context do
+        let(:delete) { comments }
+        specify do
+          expect(subject.bulk_body).to eq([
+            {delete: {_id: 1}}, {delete: {_id: 2, parent: 1}}, {delete: {_id: 3, parent: 1}}, {delete: {_id: 4}}
+          ])
+        end
+      end
+
+      context do
+        let(:fields) { %w[content] }
+        let(:index) { comments }
+        specify do
+          expect(subject.bulk_body).to eq([
+            {update: {_id: 1, data: {doc: {'content' => comments[0].content}}}},
+            {update: {_id: 2, data: {doc: {'content' => comments[1].content, 'parent' => 1}}}},
+            {update: {_id: 3, data: {doc: {'content' => comments[2].content, 'parent' => 1}}}},
+            {update: {_id: 4, data: {doc: {'content' => comments[3].content}}}}
+          ])
+        end
+      end
+    end
   end
 
   describe '#index_objects_by_id' do

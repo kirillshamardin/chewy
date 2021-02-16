@@ -57,6 +57,20 @@ module MongoidClassHelpers
     end
   end
 
+  module Comment
+    extend ActiveSupport::Concern
+
+    included do
+      include Mongoid::Document
+      include Mongoid::Timestamps::Updated
+      include Document
+
+      field :content, type: String
+      field :join_field, type: String
+      field :parent, type: Integer
+    end
+  end
+
   def adapter
     :mongoid
   end

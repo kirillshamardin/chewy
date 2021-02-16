@@ -26,6 +26,14 @@ DB.create_table :rating_cities do
   column :updated_at, :datetime
 end
 
+DB.create_table :comments do
+  primary_key :id
+  column :content, :string
+  column :join_field, :string
+  column :parent, :integer
+  column :updated_at, :datetime
+end
+
 Sequel::Model.plugin :timestamps, update_on_create: true
 Sequel::Model.plugin :chewy_observe
 

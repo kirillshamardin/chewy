@@ -81,3 +81,35 @@ curl -X POST 'localhost:9206/_bulk/?pretty=true' -H 'Content-Type: application/j
 { "create": { "_id": "5", "_index": "quiz", "_type": "parent" }  }
 { "doc": { "content": "New answer!", "join_field": { "name": "answer", "parent": "1" } } }
 '
+
+curl -X POST 'localhost:9206/_bulk/?pretty=true' -H 'Content-Type: application/json' -d  '
+{ "delete": { "_id": "3", "_index": "quiz", "_type": "parent" }  }
+'
+# fails with
+#{
+#  "took" : 3,
+#  "errors" : false,
+#  "items" : [
+#    {
+#      "delete" : {
+#        "_index" : "quiz",
+#        "_type" : "parent",
+#        "_id" : "3",
+#        "_version" : 2,
+#        "result" : "not_found",
+#        "_shards" : {
+#          "total" : 2,
+#          "successful" : 1,
+#          "failed" : 0
+#        },
+#        "_seq_no" : 1,
+#        "_primary_term" : 2,
+#        "status" : 404
+#      }
+#    }
+#  ]
+#}
+
+
+{ "delete": { "_id": "3", "_index": "quiz", "_type": "parent", "parent": "1" }  }
+# works!
