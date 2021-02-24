@@ -1,3 +1,4 @@
+          require 'pry'
 module Chewy
   class Type
     module Import
@@ -44,7 +45,8 @@ module Chewy
         end
 
         def parents
-          return unless type_root.parent_id
+          #return unless type_root.parent_id
+          return unless join_field
 
           @parents ||= begin
             ids = @index.map do |object|
@@ -53,8 +55,14 @@ module Chewy
             ids.concat(@delete.map do |object|
               object.respond_to?(:id) ? object.id : object
             end)
-            @type.filter(ids: {values: ids}).order('_doc').pluck(:_id, :_parent).to_h
+            @type.filter(ids: {values: ids}).order('_doc').pluck(:_id, :_routing, join_field).map{|id, routing, join| [id, {routing: routing, parent_id: join['parent']}]}.to_h
+            # @type.filter(ids: {values: ids}).order('_doc').pluck(:_id, join_field).to_h
           end
+        end
+
+        #TODO move to a better place
+        def join_field
+          @join_field ||= @type.mappings_hash[@type.type_name.to_sym][:properties].find{|name, options| options[:type] == :join}&.first
         end
 
         def index_entry(object)
@@ -62,11 +70,14 @@ module Chewy
           entry[:_id] = index_object_ids[object] if index_object_ids[object]
 
           if parents
-            entry[:parent] = type_root.compose_parent(object)
             parent = entry[:_id].present? && parents[entry[:_id].to_s]
+            if parent && parent[:parent_id]
+              entry[:_routing] = parent[:routing]
+            end
           end
 
-          if parent && entry[:parent].to_s != parent
+          #TODO prepare tests and enable this branch
+          if false && parent && entry[:parent].to_s != parent
             entry[:data] = @type.compose(object, crutches)
             [{delete: entry.except(:data).merge(parent: parent)}, {index: entry}]
           elsif @fields.present?
@@ -88,8 +99,11 @@ module Chewy
 
           if parents
             parent = entry[:_id].present? && parents[entry[:_id].to_s]
-            return [] unless parent
-            entry[:parent] = parent
+            # return [] unless parent
+            if parent && parent[:parent_id]
+              entry[:_routing] = parent[:routing]
+              entry[:parent] = parent[:parent_id]
+            end
           end
 
           [{delete: entry}]

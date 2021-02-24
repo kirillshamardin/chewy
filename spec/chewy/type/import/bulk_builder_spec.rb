@@ -185,17 +185,55 @@ describe Chewy::Type::Import::BulkBuilder do
           define_type Comment do
             field :content
             #TODO extract `join` type handling to the production chewy code to make it reusable
-            field :join_field, type: :join, relations: {question: :answer}, value: -> { parent.present? ? {name: :answer, parent: parent} : :question }
+            field :join_field, type: :join, relations: {question: [:answer, :comment], answer: :vote}, value: -> { parent.present? ? {name: join_field, parent: parent} : join_field }
           end
+        end
+      end
+
+      let(:existing_comments) do
+        [
+          Comment.create!(id: 1, content: 'Where is Nemo?', join_field: :question),
+          Comment.create!(id: 2, content: 'Here.', join_field: :answer, parent: 1),
+          Comment.create!(id: 31, content: 'What is the best programming language?', join_field: :question)
+        ]
+      end
+
+      def do_raw_index_comment(options:, data:)
+        CommentsIndex.client.index(options.merge(index: 'comments', type: 'comment', refresh: true, body: data))
+      end
+
+      def raw_index_comment(comment)
+        options = {id: comment.id, routing: routing_for(comment.id)}
+        join_field = comment.parent.present? ? {name: comment.join_field, parent: comment.parent} : comment.join_field
+        do_raw_index_comment(
+          options: options,
+          data: {content: comment.content, join_field: join_field}
+        )
+      end
+
+      def routing_for(id)
+        "comment-#{id.div(10)}"
+      end
+
+      before do
+        CommentsIndex.reset! # initialize index
+        existing_comments.map do |c|
         end
       end
 
       let(:comments) do
         [
-          Comment.create!(id: 1, content: 'What is the sense of the universe?', join_field: :question),
-          Comment.create!(id: 2, content: 'I don\'t know.', join_field: :answer, parent: 1),
-          Comment.create!(id: 3, content: '42', join_field: :answer, parent: 1),
-          Comment.create!(id: 4, content: 'How are you?', join_field: :question)
+          Comment.create!(id: 3, content: 'There!', join_field: :answer, parent: 1),
+          Comment.create!(id: 4, content: 'Yes, he is here.', join_field: :vote, parent: 2),
+
+          Comment.create!(id: 11, content: 'What is the sense of the universe?', join_field: :question),
+          Comment.create!(id: 12, content: 'I don\'t know.', join_field: :answer, parent: 11),
+          Comment.create!(id: 13, content: '42', join_field: :answer, parent: 11),
+          Comment.create!(id: 14, content: 'I think that 42 is a correct answer', join_field: :vote, parent: 13),
+
+          Comment.create!(id: 21, content: 'How are you?', join_field: :question),
+
+          Comment.create!(id: 32, content: 'Ruby', join_field: :answer, parent: 31)
         ]
       end
 
@@ -203,33 +241,65 @@ describe Chewy::Type::Import::BulkBuilder do
         let(:index) { comments }
 
         specify do
+          # TODO switching parents?
           expect(subject.bulk_body).to eq([
-            {index: {_id: 1, data: {'content' => 'What is the sense of the universe?', 'join_field' => 'question'}}},
-            {index: {_id: 2, data: {'content' => 'I don\'t know.', 'join_field' => {'name' => 'answer', 'parent' => 1}}}},
-            {index: {_id: 3, data: {'content' => '42', 'join_field' => {'name' => 'answer', 'parent' => 1}}}},
-            {index: {_id: 4, data: {'content' => 'How are you?', 'join_field' => 'question'}}}
+            {index: {_id: 3, _routing: 'comment-0', data: {'content' => 'There!', 'join_field' => {'name' => 'answer', 'parent' => 1}}}},
+            {index: {_id: 4, _routing: 'comment-0', data: {'content' => 'Yes, he is here.', 'join_field' => {'name' => 'vote', 'parent' => 2}}}},
+
+            {index: {_id: 11, data: {'content' => 'What is the sense of the universe?', 'join_field' => 'question'}}},
+            {index: {_id: 12, _routing: 'comment-1', data: {'content' => 'I don\'t know.', 'join_field' => {'name' => 'answer', 'parent' => 11}}}},
+            {index: {_id: 13, _routing: 'comment-1', data: {'content' => '42', 'join_field' => {'name' => 'answer', 'parent' => 11}}}},
+            {index: {_id: 14, _routing: 'comment-1', data: {'content' => 'I think that 42 is a correct answer', 'join_field' => {'name' => 'vote', 'parent' => 13}}}},
+
+            {index: {_id: 21, data: {'content' => 'How are you?', 'join_field' => 'question'}}},
+
+            {index: {_id: 32, _routing: 'comment-3', data: {'content' => 'Ruby', 'join_field' => {'name' => 'answer', 'parent' => 31}}}},
           ])
         end
       end
 
       context do
+        before do
+          comments.each { |c| raw_index_comment(c) }
+        end
+
         let(:delete) { comments }
         specify do
           expect(subject.bulk_body).to eq([
-            {delete: {_id: 1}}, {delete: {_id: 2, parent: 1}}, {delete: {_id: 3, parent: 1}}, {delete: {_id: 4}}
+            {delete: {_id: 3, _routing: 'comment-0', parent: 1}},
+            {delete: {_id: 4, _routing: 'comment-0', parent: 2}},
+
+            {delete: {_id: 11}},
+            {delete: {_id: 12, _routing: 'comment-1', parent: 11}},
+            {delete: {_id: 13, _routing: 'comment-1', parent: 11}},
+            {delete: {_id: 14, _routing: 'comment-1', parent: 13}},
+
+            {delete: {_id: 21}},
+
+            {delete: {_id: 32, _routing: 'comment-3', parent: 31}}
           ])
         end
       end
 
       context do
+        before do
+          comments.each { |c| raw_index_comment(c) }
+        end
         let(:fields) { %w[content] }
         let(:index) { comments }
         specify do
           expect(subject.bulk_body).to eq([
-            {update: {_id: 1, data: {doc: {'content' => comments[0].content}}}},
-            {update: {_id: 2, data: {doc: {'content' => comments[1].content, 'parent' => 1}}}},
-            {update: {_id: 3, data: {doc: {'content' => comments[2].content, 'parent' => 1}}}},
-            {update: {_id: 4, data: {doc: {'content' => comments[3].content}}}}
+            {update: {_id: 3, _routing: 'comment-0', data: {doc: {'content' => comments[0].content}}}},
+            {update: {_id: 4, _routing: 'comment-0', data: {doc: {'content' => comments[1].content}}}},
+
+            {update: {_id: 11, data: {doc: {'content' => comments[2].content}}}},
+            {update: {_id: 12, _routing: 'comment-1', data: {doc: {'content' => comments[3].content}}}},
+            {update: {_id: 13, _routing: 'comment-1', data: {doc: {'content' => comments[4].content}}}},
+            {update: {_id: 14, _routing: 'comment-1', data: {doc: {'content' => comments[5].content}}}},
+
+            {update: {_id: 21, data: {doc: {'content' => comments[6].content}}}},
+
+            {update: {_id: 32, _routing: 'comment-3', data: {doc: {'content' => comments[7].content}}}}
           ])
         end
       end
