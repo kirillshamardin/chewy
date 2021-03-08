@@ -65,29 +65,48 @@ module Chewy
           @join_field ||= @type.mappings_hash[@type.type_name.to_sym][:properties].find{|name, options| options[:type] == :join}&.first
         end
 
+        def join_field_value(entry)
+          entry[:data][join_field.to_s]
+        end
+
         def index_entry(object)
           entry = {}
           entry[:_id] = index_object_ids[object] if index_object_ids[object]
+          entry[:_routing] = entry[:_id].to_s if join_field
 
-          if parents
+          if parents.present?
             parent = entry[:_id].present? && parents[entry[:_id].to_s]
+            new_join_field_value = @type.compose(object, crutches)[join_field.to_s]
+            new_parent_id = new_join_field_value["parent"] if new_join_field_value.is_a? Hash
             if parent && parent[:parent_id]
-              entry[:_routing] = parent[:routing]
+              entry[:_routing] = parent[:routing] || parent[:parent_id]
             end
           end
 
-          #TODO prepare tests and enable this branch
-          if false && parent && entry[:parent].to_s != parent
+          e = if parent && new_parent_id != parent.dig(:parent_id)
+          #e = if parent && entry[:parent].to_s != parent
             entry[:data] = @type.compose(object, crutches)
-            [{delete: entry.except(:data).merge(parent: parent)}, {index: entry}]
+            delete = {delete: entry.except(:data).merge(parent: parent[:parent_id])}
+            join_field_value = join_field_value(entry)
+            if join_field_value && join_field_value["parent"]
+              entry[:_routing] = join_field_value['parent'].to_s
+            else
+              entry.delete(:_routing)
+            end
+            index = {index: entry}
+            [delete, index]
           elsif @fields.present?
             return [] unless entry[:_id]
             entry[:data] = {doc: @type.compose(object, crutches, fields: @fields)}
             [{update: entry}]
           else
             entry[:data] = @type.compose(object, crutches)
+            join_field_value = join_field_value(entry)
+            entry[:_routing] = join_field_value['parent'].to_s if join_field_value && join_field_value["parent"]
             [{index: entry}]
           end
+
+            e
         end
 
         def delete_entry(object)
@@ -97,12 +116,13 @@ module Chewy
 
           return [] if entry[:_id].blank?
 
+          entry[:_routing] = entry[:_id].to_s if join_field
           if parents
             parent = entry[:_id].present? && parents[entry[:_id].to_s]
             # return [] unless parent
             if parent && parent[:parent_id]
-              entry[:_routing] = parent[:routing]
               entry[:parent] = parent[:parent_id]
+              entry[:_routing] = parent[:routing] || parent[:parent_id] if join_field
             end
           end
 
