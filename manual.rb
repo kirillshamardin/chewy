@@ -24,7 +24,7 @@ ActiveRecord::Base.connection.execute("DROP TABLE IF EXISTS 'comments'")
 ActiveRecord::Schema.define do
   create_table :comments do |t|
     t.column :content, :string
-    t.column :join_field, :string
+    t.column :comment_type, :string
     t.column :parent, :integer
     t.column :updated_at, :datetime
   end
@@ -35,31 +35,31 @@ class Comment < ActiveRecord::Base; end
 class CommentsIndex < Chewy::Index
   define_type Comment do
     field :content
-    field :join_field, type: :join, relations: {question: [:answer, :comment], answer: :vote}, value: -> { parent.present? ? {name: join_field, parent: parent} : join_field }
+    field :comment_type, type: :join, relations: {question: [:answer, :comment], answer: :vote}, value: -> { parent.present? ? {name: comment_type, parent: parent} : comment_type }
   end
 end
 
 def create_existing_comments
   @existing_comments = [
-    Comment.create!(id: 1, content: 'Where is Nemo?', join_field: :question),
-    Comment.create!(id: 2, content: 'Here.', join_field: :answer, parent: 1),
-    Comment.create!(id: 31, content: 'What is the best programming language?', join_field: :question)
+    Comment.create!(id: 1, content: 'Where is Nemo?', comment_type: :question),
+    Comment.create!(id: 2, content: 'Here.', comment_type: :answer, parent: 1),
+    Comment.create!(id: 31, content: 'What is the best programming language?', comment_type: :question)
   ]
 end
 
 def create_new_comments
   @new_comments = [
-    Comment.create!(id: 3, content: 'There!', join_field: :answer, parent: 1),
-    Comment.create!(id: 4, content: 'Yes, he is here.', join_field: :vote, parent: 2),
+    Comment.create!(id: 3, content: 'There!', comment_type: :answer, parent: 1),
+    Comment.create!(id: 4, content: 'Yes, he is here.', comment_type: :vote, parent: 2),
 
-    Comment.create!(id: 11, content: 'What is the sense of the universe?', join_field: :question),
-    Comment.create!(id: 12, content: 'I don\'t know.', join_field: :answer, parent: 11),
-    Comment.create!(id: 13, content: '42', join_field: :answer, parent: 11),
-    Comment.create!(id: 14, content: 'I think that 42 is a correct answer', join_field: :vote, parent: 13),
+    Comment.create!(id: 11, content: 'What is the sense of the universe?', comment_type: :question),
+    Comment.create!(id: 12, content: 'I don\'t know.', comment_type: :answer, parent: 11),
+    Comment.create!(id: 13, content: '42', comment_type: :answer, parent: 11),
+    Comment.create!(id: 14, content: 'I think that 42 is a correct answer', comment_type: :vote, parent: 13),
 
-    Comment.create!(id: 21, content: 'How are you?', join_field: :question),
+    Comment.create!(id: 21, content: 'How are you?', comment_type: :question),
 
-    Comment.create!(id: 32, content: 'Ruby', join_field: :answer, parent: 31)
+    Comment.create!(id: 32, content: 'Ruby', comment_type: :answer, parent: 31)
   ]
 end
 

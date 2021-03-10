@@ -23,8 +23,8 @@ ActiveRecord::Schema.define do
 
   create_table :comments do |t|
     t.column :content, :string
-    t.column :join_field, :string
-    t.column :parent, :integer
+    t.column :comment_type, :string
+    t.column :parent, :integer #TODO rename it to avoid naming clashes with ES parent
     t.column :updated_at, :datetime
   end
 end

@@ -39,7 +39,7 @@ describe Chewy::Fields::Base do
       end
     end
 
-    context 'parent objects' do
+    context 'parent objects' do #TODO most probably to be removed or rewritten
       let!(:country) { described_class.new(:name, value: ->(country, crutches) { country.cities.map { |city| double(districts: city.districts, name: crutches.city_name) } }) }
       let!(:city) { described_class.new(:name, value: ->(city, country, crutches) { city.districts.map { |district| [district, country.name, crutches.suffix] } }) }
       let!(:district) { described_class.new(:name, value: ->(district, city, country, crutches) { [district, city.name, country.name, crutches] }) }

@@ -66,7 +66,7 @@ module MongoidClassHelpers
       include Document
 
       field :content, type: String
-      field :join_field, type: String
+      field :comment_type, type: String
       field :parent, type: Integer
     end
   end

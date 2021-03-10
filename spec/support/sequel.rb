@@ -29,7 +29,7 @@ end
 DB.create_table :comments do
   primary_key :id
   column :content, :string
-  column :join_field, :string
+  column :comment_type, :string
   column :parent, :integer
   column :updated_at, :datetime
 end

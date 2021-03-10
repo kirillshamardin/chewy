@@ -11,7 +11,7 @@ curl -X PUT localhost:9206/quiz?pretty=true -H 'Content-Type: application/json' 
         "content": {
           "type": "text"
         },
-        "join_field": {
+        "comment_type": {
           "type": "join",
           "relations": {
             "question": "answer"
@@ -27,7 +27,7 @@ curl -X PUT localhost:9206/quiz/_doc/1?pretty=true -H 'Content-Type: application
 {
   "id_field": "1",
   "content": "2+3?",
-  "join_field": "question"
+  "comment_type": "question"
 }
 EOF
 
@@ -35,7 +35,7 @@ curl -X PUT localhost:9206/quiz/_doc/2?pretty=true -H 'Content-Type: application
 {
   "id_field": "2",
   "content": "3+4?",
-  "join_field": "question"
+  "comment_type": "question"
 }
 EOF
 
@@ -44,7 +44,7 @@ curl -X PUT 'localhost:9206/quiz/_doc/3?routing=1&pretty=true' -H 'Content-Type:
 {
   "id_field": "3",
   "content": "3!",
-  "join_field": {
+  "comment_type": {
     "name": "answer",
     "parent": "1"
   }
@@ -56,7 +56,7 @@ curl -X PUT 'localhost:9206/quiz/_doc/4?routing=1&pretty=true' -H 'Content-Type:
 {
   "id_field": "4",
   "content": "4!",
-  "join_field": {
+  "comment_type": {
     "name": "answer",
     "parent": "1"
   }
@@ -71,15 +71,15 @@ curl -X POST 'localhost:9206/_bulk/?pretty=true' -H 'Content-Type: application/j
 { "update": { "_id": "3", "_index": "quiz", "_type": "parent" }  }
 { "doc": { "content": "Changed answer!" } }
 { "create": { "_id": "5", "_index": "quiz", "_type": "parent" }  }
-{ "doc": { "content": "New answer!", "join_field": { "name": "answer", "parent": "1" } } }
+{ "doc": { "content": "New answer!", "comment_type": { "name": "answer", "parent": "1" } } }
 '
 
 # works
 curl -X POST 'localhost:9206/_bulk/?pretty=true' -H 'Content-Type: application/json' -d  '
 { "update": { "_id": "3", "_index": "quiz", "_type": "parent" }  }
-{ "doc": { "content": "Changed answer!", "join_field": { "name": "answer", "parent": "1" } } }
+{ "doc": { "content": "Changed answer!", "comment_type": { "name": "answer", "parent": "1" } } }
 { "create": { "_id": "5", "_index": "quiz", "_type": "parent" }  }
-{ "doc": { "content": "New answer!", "join_field": { "name": "answer", "parent": "1" } } }
+{ "doc": { "content": "New answer!", "comment_type": { "name": "answer", "parent": "1" } } }
 '
 
 curl -X POST 'localhost:9206/_bulk/?pretty=true' -H 'Content-Type: application/json' -d  '
@@ -111,5 +111,7 @@ curl -X POST 'localhost:9206/_bulk/?pretty=true' -H 'Content-Type: application/j
 #}
 
 
+curl -X POST 'localhost:9206/_bulk/?pretty=true' -H 'Content-Type: application/json' -d  '
 { "delete": { "_id": "3", "_index": "quiz", "_type": "parent", "parent": "1" }  }
+'
 # works!
