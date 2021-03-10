@@ -185,7 +185,7 @@ describe Chewy::Type::Import::BulkBuilder do
           define_type Comment do
             field :content
             #TODO extract `join` type handling to the production chewy code to make it reusable
-            field :comment_type, type: :join, relations: {question: [:answer, :comment], answer: :vote}, value: -> { parent.present? ? {name: comment_type, parent: parent} : comment_type }
+            field :comment_type, type: :join, relations: {question: [:answer, :comment], answer: :vote}, value: -> { commented_id.present? ? {name: comment_type, parent: commented_id} : comment_type }
           end
         end
       end
@@ -193,7 +193,7 @@ describe Chewy::Type::Import::BulkBuilder do
       let!(:existing_comments) do
         [
           Comment.create!(id: 1, content: 'Where is Nemo?', comment_type: :question),
-          Comment.create!(id: 2, content: 'Here.', comment_type: :answer, parent: 1),
+          Comment.create!(id: 2, content: 'Here.', comment_type: :answer, commented_id: 1),
           Comment.create!(id: 31, content: 'What is the best programming language?', comment_type: :question)
         ]
       end
@@ -203,8 +203,8 @@ describe Chewy::Type::Import::BulkBuilder do
       end
 
       def raw_index_comment(comment)
-        options = {id: comment.id, routing: (comment.parent.present? ? comment.parent : comment.id)}
-        comment_type = comment.parent.present? ? {name: comment.comment_type, parent: comment.parent} : comment.comment_type
+        options = {id: comment.id, routing: (comment.commented_id.present? ? comment.commented_id : comment.id)}
+        comment_type = comment.commented_id.present? ? {name: comment.comment_type, parent: comment.commented_id} : comment.comment_type
         do_raw_index_comment(
           options: options,
           data: {content: comment.content, comment_type: comment_type}
@@ -221,17 +221,17 @@ describe Chewy::Type::Import::BulkBuilder do
 
       let(:comments) do
         [
-          Comment.create!(id: 3, content: 'There!', comment_type: :answer, parent: 1),
-          Comment.create!(id: 4, content: 'Yes, he is here.', comment_type: :vote, parent: 2),
+          Comment.create!(id: 3, content: 'There!', comment_type: :answer, commented_id: 1),
+          Comment.create!(id: 4, content: 'Yes, he is here.', comment_type: :vote, commented_id: 2),
 
           Comment.create!(id: 11, content: 'What is the sense of the universe?', comment_type: :question),
-          Comment.create!(id: 12, content: 'I don\'t know.', comment_type: :answer, parent: 11),
-          Comment.create!(id: 13, content: '42', comment_type: :answer, parent: 11),
-          Comment.create!(id: 14, content: 'I think that 42 is a correct answer', comment_type: :vote, parent: 13),
+          Comment.create!(id: 12, content: 'I don\'t know.', comment_type: :answer, commented_id: 11),
+          Comment.create!(id: 13, content: '42', comment_type: :answer, commented_id: 11),
+          Comment.create!(id: 14, content: 'I think that 42 is a correct answer', comment_type: :vote, commented_id: 13),
 
           Comment.create!(id: 21, content: 'How are you?', comment_type: :question),
 
-          Comment.create!(id: 32, content: 'Ruby', comment_type: :answer, parent: 31)
+          Comment.create!(id: 32, content: 'Ruby', comment_type: :answer, commented_id: 31)
         ]
       end
 
@@ -246,9 +246,9 @@ describe Chewy::Type::Import::BulkBuilder do
       end
 
       context 'when switching parents' do
-        let(:switching_parent_comment) { comments[0].tap { |c| c.update!(parent: 31) } }
-        let(:removing_parent_comment) { comments[1].tap { |c| c.update!(parent: nil, comment_type: nil) } }
-        let(:fields) { %w[parent] }
+        let(:switching_parent_comment) { comments[0].tap { |c| c.update!(commented_id: 31) } }
+        let(:removing_parent_comment) { comments[1].tap { |c| c.update!(commented_id: nil, comment_type: nil) } }
+        let(:fields) { %w[commented_id] }
 
         let(:index) { [switching_parent_comment, removing_parent_comment] }
 

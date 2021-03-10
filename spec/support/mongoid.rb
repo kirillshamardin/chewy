@@ -67,7 +67,7 @@ module MongoidClassHelpers
 
       field :content, type: String
       field :comment_type, type: String
-      field :parent, type: Integer
+      field :commented_id, type: Integer
     end
   end
 

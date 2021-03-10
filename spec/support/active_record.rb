@@ -24,7 +24,7 @@ ActiveRecord::Schema.define do
   create_table :comments do |t|
     t.column :content, :string
     t.column :comment_type, :string
-    t.column :parent, :integer #TODO rename it to avoid naming clashes with ES parent
+    t.column :commented_id, :integer
     t.column :updated_at, :datetime
   end
 end

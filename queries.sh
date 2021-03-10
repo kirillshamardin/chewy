@@ -3,7 +3,7 @@
 curl -X PUT localhost:9206/quiz?pretty=true -H 'Content-Type: application/json' -d  @- <<'EOF'
 {
   "mappings": {
-    "parent": {
+    "question": {
       "properties": {
         "id_field": {
           "type": "keyword"
@@ -66,26 +66,26 @@ EOF
 
 # fails with
 #          "type" : "document_missing_exception",
-#          "reason" : "[parent][3]: document missing",
+#          "reason" : "[question][3]: document missing",
 curl -X POST 'localhost:9206/_bulk/?pretty=true' -H 'Content-Type: application/json' -d  '
-{ "update": { "_id": "3", "_index": "quiz", "_type": "parent" }  }
+{ "update": { "_id": "3", "_index": "quiz", "_type": "question" }  }
 { "doc": { "content": "Changed answer!" } }
-{ "create": { "_id": "5", "_index": "quiz", "_type": "parent" }  }
+{ "create": { "_id": "5", "_index": "quiz", "_type": "question" }  }
 { "doc": { "content": "New answer!", "comment_type": { "name": "answer", "parent": "1" } } }
 '
 
 # works
 curl -X POST 'localhost:9206/_bulk/?pretty=true' -H 'Content-Type: application/json' -d  '
-{ "update": { "_id": "3", "_index": "quiz", "_type": "parent" }  }
+{ "update": { "_id": "3", "_index": "quiz", "_type": "question" }  }
 { "doc": { "content": "Changed answer!", "comment_type": { "name": "answer", "parent": "1" } } }
-{ "create": { "_id": "5", "_index": "quiz", "_type": "parent" }  }
+{ "create": { "_id": "5", "_index": "quiz", "_type": "question" }  }
 { "doc": { "content": "New answer!", "comment_type": { "name": "answer", "parent": "1" } } }
 '
 
 curl -X POST 'localhost:9206/_bulk/?pretty=true' -H 'Content-Type: application/json' -d  '
-{ "delete": { "_id": "3", "_index": "quiz", "_type": "parent" }  }
+{ "delete": { "_id": "3", "_index": "quiz", "_type": "question" }  }
 '
-# fails with
+# fails with (?)
 #{
 #  "took" : 3,
 #  "errors" : false,
@@ -93,7 +93,7 @@ curl -X POST 'localhost:9206/_bulk/?pretty=true' -H 'Content-Type: application/j
 #    {
 #      "delete" : {
 #        "_index" : "quiz",
-#        "_type" : "parent",
+#        "_type" : "question",
 #        "_id" : "3",
 #        "_version" : 2,
 #        "result" : "not_found",
@@ -112,6 +112,6 @@ curl -X POST 'localhost:9206/_bulk/?pretty=true' -H 'Content-Type: application/j
 
 
 curl -X POST 'localhost:9206/_bulk/?pretty=true' -H 'Content-Type: application/json' -d  '
-{ "delete": { "_id": "3", "_index": "quiz", "_type": "parent", "parent": "1" }  }
+{ "delete": { "_id": "3", "_index": "quiz", "_type": "question", "parent": "1" }  }
 '
 # works!
