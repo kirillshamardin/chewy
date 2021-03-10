@@ -477,6 +477,48 @@ describe Chewy::Type::Import do
 
       it_behaves_like 'importing'
     end
+
+    context 'with parent-child relationship' do
+      before do
+        stub_model(:comment)
+        stub_index(:comments) do
+          define_type Comment do
+            field :content
+            #TODO extract `join` type handling to the production chewy code to make it reusable
+            field :comment_type, type: :join, relations: {question: [:answer, :comment], answer: :vote}, value: -> { commented_id.present? ? {name: comment_type, parent: commented_id} : comment_type }
+          end
+        end
+      end
+
+      let!(:comments) do
+        [
+          Comment.create!(id: 1, content: 'Where is Nemo?', comment_type: :question),
+          Comment.create!(id: 2, content: 'Here.', comment_type: :answer, commented_id: 1),
+          Comment.create!(id: 3, content: 'There!', comment_type: :answer, commented_id: 1),
+          Comment.create!(id: 4, content: 'Yes, he is here.', comment_type: :vote, commented_id: 2),
+        ]
+      end
+
+      def imported_comments
+        CommentsIndex::Comment.all.map do |comment|
+          comment.attributes.except('_score', '_explanation')
+        end
+      end
+
+      it 'imports parent and children' do
+        CommentsIndex.import!(comments.map(&:id))
+
+        expect(imported_comments).to match_array([
+          {'id' => '1', 'content' => 'Where is Nemo?', 'comment_type' => 'question'},
+          {'id' => '2', 'content' => 'Here.', 'comment_type' => {'name' => 'answer', 'parent' => 1}},
+          {'id' => '3', 'content' => 'There!', 'comment_type' => {'name' => 'answer', 'parent' => 1}},
+          {'id' => '4', 'content' => 'Yes, he is here.', 'comment_type' => {'name' => 'vote', 'parent' => 2}},
+        ])
+
+        answer_ids = CommentsIndex.query(has_parent: {parent_type: 'question', query: {match: {content: 'Where' }}}).pluck(:_id)
+        expect(answer_ids).to match_array(%w[2 3])
+      end
+    end
   end
 
   describe '.import!', :orm do
