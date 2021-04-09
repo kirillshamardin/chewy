@@ -45,7 +45,6 @@ module Chewy
         end
 
         def parents
-          #return unless type_root.parent_id
           return unless join_field
 
           @parents ||= begin
@@ -56,7 +55,6 @@ module Chewy
               object.respond_to?(:id) ? object.id : object
             end)
             @type.filter(ids: {values: ids}).order('_doc').pluck(:_id, :_routing, join_field).map{|id, routing, join| [id, {routing: routing, parent_id: join['parent']}]}.to_h
-            # @type.filter(ids: {values: ids}).order('_doc').pluck(:_id, join_field).to_h
           end
         end
 
@@ -70,21 +68,16 @@ module Chewy
         end
 
         def existing_routing(object)
+          #FIXME: UGLY AND SLOW!
           @type.filter(ids: {values: [object.id]}).pluck(:_routing).first
         end
 
         def routing(object)
-          # return routing(parent(object)) if parent(object)
-          #
-          # memoize(
-          #   routing_from_this_bulk || routing_from_elastic
-          # )
           return unless object.respond_to?(:id) #non-model objects
           parent = find_parent(object)
 
-          # binding.pry if object.id == 3
           if parent
-            # UGLY AND SLOW!
+            #FIXME: UGLY AND SLOW!
             routing(indexed[parent]) || @type.filter(ids: {values: [parent]}).pluck(:_routing).first
           else
             object.id.to_s
@@ -95,64 +88,34 @@ module Chewy
           @indexed ||= @index.index_by(&:id)
         end
 
-        def routing_old(object)
-          return unless join_field
-          return unless @type.compose(object, crutches)[join_field.to_s]
-          return unless @type.compose(object, crutches)[join_field.to_s]["parent"]
-
-          @type.filter(term: {_id: @type.compose(object, crutches)[join_field.to_s]["parent"]}).pluck(:_routing).first
-        end
-
         #TODO move to a better place
         def join_field
           @join_field ||= @type.mappings_hash[@type.type_name.to_sym][:properties].find{|name, options| options[:type] == :join}&.first
         end
 
-        def join_field_value(entry)
-          entry[:data][join_field.to_s]
-        end
-
         def index_entry(object)
           entry = {}
           entry[:_id] = index_object_ids[object] if index_object_ids[object]
-          entry[:_routing] = entry[:_id].to_s if join_field
 
           if parents.present?
             parent = entry[:_id].present? && parents[entry[:_id].to_s]
             new_join_field_value = @type.compose(object, crutches)[join_field.to_s]
             new_parent_id = new_join_field_value["parent"] if new_join_field_value.is_a? Hash
-            if parent && parent[:parent_id]
-              entry[:_routing] = parent[:routing] || parent[:parent_id]
-            end
           end
 
+          entry[:_routing] = routing(object) if  routing(object) && join_field
           e = if parent && new_parent_id != parent.dig(:parent_id)
-          #e = if parent && entry[:parent].to_s != parent
             entry[:data] = @type.compose(object, crutches)
-            # routing = routing(object) || parent[:routing]
             routing = existing_routing(object)
-            # binding.pry
             delete = {delete: entry.except(:data).merge(parent: parent[:parent_id], _routing: routing)}
-            join_field_value = join_field_value(entry)
-            if join_field_value && join_field_value["parent"]
-              entry[:_routing] = join_field_value['parent'].to_s
-            else
-              entry.delete(:_routing)
-            end
-
-            entry[:_routing] = routing(object) if  routing(object) && join_field
             index = {index: entry}
             [delete, index]
           elsif @fields.present?
             return [] unless entry[:_id]
             entry[:data] = {doc: @type.compose(object, crutches, fields: @fields)}
-            entry[:_routing] = routing(object) if routing(object) && join_field
             [{update: entry}]
           else
             entry[:data] = @type.compose(object, crutches)
-            join_field_value = join_field_value(entry)
-            entry[:_routing] = join_field_value['parent'].to_s if join_field_value && join_field_value["parent"]
-            entry[:_routing] = routing(object) if  routing(object) && join_field
             [{index: entry}]
           end
 
@@ -166,16 +129,13 @@ module Chewy
 
           return [] if entry[:_id].blank?
 
-          entry[:_routing] = entry[:_id].to_s if join_field
+          entry[:_routing] = existing_routing(object) if join_field
           if parents
             parent = entry[:_id].present? && parents[entry[:_id].to_s]
-            # return [] unless parent
             if parent && parent[:parent_id]
               entry[:parent] = parent[:parent_id]
-              entry[:_routing] = parent[:routing] || parent[:parent_id] if join_field
             end
           end
-          entry[:_routing] = existing_routing(object) if join_field
 
           [{delete: entry}]
         end
