@@ -11,8 +11,10 @@ module Chewy
       IMPORT_WORKER = lambda do |type, options, total, ids, index|
         ::Process.setproctitle("chewy [#{type}]: import data (#{index + 1}/#{total})")
         routine = Routine.new(type, **options)
+        progressbar = ProgressBar.create total: ids.count if routine.options[:progressbar]
         type.adapter.import(*ids, routine.options) do |action_objects|
           routine.process(**action_objects)
+          progressbar.progress += action_objects.values.flatten.length if routine.options[:progressbar]
         end
         {errors: routine.errors, import: routine.stats, leftovers: routine.leftovers}
       end
