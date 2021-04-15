@@ -150,8 +150,10 @@ module Chewy
 
         def import_linear(objects, routine)
           ActiveSupport::Notifications.instrument 'import_objects.chewy', type: self do |payload|
+            progressbar = ProgressBar.create total: adapter.import_count(objects)
             adapter.import(*objects, routine.options) do |action_objects|
               routine.process(**action_objects)
+              progressbar.progress += action_objects.values.flatten.length
             end
             routine.perform_bulk(routine.leftovers)
             payload[:import] = routine.stats
