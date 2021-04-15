@@ -303,7 +303,7 @@ module Chewy
 
       def reset_one(index, output, parallel: false)
         output.puts "Resetting #{index}"
-        index.reset!((Time.now.to_f * 1000).round, parallel: parallel)
+        index.reset!((Time.now.to_f * 1000).round, parallel: parallel, progressbar: ENV['RAKE_PROGRESSBAR'])
       end
     end
   end
