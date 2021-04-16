@@ -10,6 +10,7 @@
 
 ### Changes
 
+  * [#469](https://github.com/toptal/chewy/issues/469): Add `ENV['PROGRESSBAR']` to output progressbar during `reset` rake task ([@Vitalina-Vakulchyk][])
   * [#692](https://github.com/toptal/chewy/issues/692): Add `.update_mapping` to Index class ([@Vitalina-Vakulchyk][]):
     * Wrapped Elasticsearch gem `.put_mapping` with `.update_mapping` in Index class
     * Add `rake chewy:update_mapping` task
