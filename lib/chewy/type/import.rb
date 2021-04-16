@@ -14,7 +14,7 @@ module Chewy
         type.adapter.import(*ids, routine.options) do |action_objects|
           routine.process(**action_objects)
           begin
-            progressbar.progress += action_objects.map { |_, v| v.size }.sum if routine.options[:progressbar] == true
+            progressbar.progress += action_objects.map { |_, v| v.size }.sum if routine.options[:progressbar] == 'true'
           rescue ProgressBar::InvalidProgressError
             # Output title without progressbar line
             progressbar.title = 'Too many elements to output progressbar'
@@ -156,11 +156,11 @@ module Chewy
 
         def import_linear(objects, routine)
           ActiveSupport::Notifications.instrument 'import_objects.chewy', type: self do |payload|
-            progressbar = ProgressBar.create total: adapter.import_count(objects) if routine.options[:progressbar] == true
+            progressbar = ProgressBar.create total: adapter.import_count(objects) if routine.options[:progressbar] == 'true'
             adapter.import(*objects, routine.options) do |action_objects|
               routine.process(**action_objects)
               begin
-                progressbar.progress += action_objects.map { |_, v| v.size }.sum if routine.options[:progressbar] == true
+                progressbar.progress += action_objects.map { |_, v| v.size }.sum if routine.options[:progressbar] == 'true'
               rescue ProgressBar::InvalidProgressError
                 # Output title without progressbar line
                 progressbar.title = 'Too many elements to output progressbar'
@@ -181,7 +181,7 @@ module Chewy
           ActiveSupport::Notifications.instrument 'import_objects.chewy', type: self do |payload|
             batches = adapter.import_references(*objects, routine.options.slice(:batch_size)).to_a
 
-            progressbar = ProgressBar.create total: adapter.import_count(objects) if routine.options[:progressbar] == true
+            progressbar = ProgressBar.create total: adapter.import_count(objects) if routine.options[:progressbar] == 'true'
             ::ActiveRecord::Base.connection.close if defined?(::ActiveRecord::Base)
             results = ::Parallel.map_with_index(
               batches,
