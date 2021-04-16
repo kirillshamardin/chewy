@@ -13,7 +13,7 @@ module Chewy
         routine = Routine.new(type, **options)
         type.adapter.import(*ids, routine.options) do |action_objects|
           routine.process(**action_objects)
-          progressbar.progress += action_objects.values.flatten.length if routine.options[:progressbar]
+          progressbar.progress += action_objects.map { |_, v| v.size }.sum if routine.options[:progressbar]
         end
         {errors: routine.errors, import: routine.stats, leftovers: routine.leftovers}
       end
@@ -154,7 +154,7 @@ module Chewy
             progressbar = ProgressBar.create total: adapter.import_count(objects) if routine.options[:progressbar]
             adapter.import(*objects, routine.options) do |action_objects|
               routine.process(**action_objects)
-              progressbar.progress += action_objects.values.flatten.length if routine.options[:progressbar]
+              progressbar.progress += action_objects.map { |_, v| v.size }.sum if routine.options[:progressbar]
             end
             routine.perform_bulk(routine.leftovers)
             payload[:import] = routine.stats
