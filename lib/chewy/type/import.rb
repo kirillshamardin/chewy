@@ -8,10 +8,9 @@ module Chewy
     module Import
       extend ActiveSupport::Concern
 
-      IMPORT_WORKER = lambda do |type, options, total, ids, index|
+      IMPORT_WORKER = lambda do |progressbar, type, options, total, ids, index|
         ::Process.setproctitle("chewy [#{type}]: import data (#{index + 1}/#{total})")
         routine = Routine.new(type, **options)
-        progressbar = ProgressBar.create total: ids.count if routine.options[:progressbar]
         type.adapter.import(*ids, routine.options) do |action_objects|
           routine.process(**action_objects)
           progressbar.progress += action_objects.values.flatten.length if routine.options[:progressbar]
@@ -172,11 +171,12 @@ module Chewy
           ActiveSupport::Notifications.instrument 'import_objects.chewy', type: self do |payload|
             batches = adapter.import_references(*objects, routine.options.slice(:batch_size)).to_a
 
+            progressbar = ProgressBar.create total: adapter.import_count(objects) if routine.options[:progressbar]
             ::ActiveRecord::Base.connection.close if defined?(::ActiveRecord::Base)
             results = ::Parallel.map_with_index(
               batches,
               routine.parallel_options,
-              &IMPORT_WORKER.curry[self, routine.options, batches.size]
+              &IMPORT_WORKER.curry[progressbar, self, routine.options, batches.size]
             )
             ::ActiveRecord::Base.connection.reconnect! if defined?(::ActiveRecord::Base)
             errors, import, leftovers = process_parallel_import_results(results)
