@@ -10,9 +10,9 @@
 
 ### Changes
 
-  * [#469](https://github.com/toptal/chewy/issues/469): Add ability to output progressbar with `ENV['PROGRESSBAR']` during `reset` rake tasks ([@Vitalina-Vakulchyk][]):
+  * [#469](https://github.com/toptal/chewy/issues/469): Add ability to output progressbar with `ENV['PROGRESS']` during `reset` rake tasks ([@Vitalina-Vakulchyk][]):
     * for `rake chewy:reset` and `rake chewy:parallel:reset`
-    * progressbar is hidden by default, set `ENV['PROGRESSBAR']` to true to display it
+    * progressbar is hidden by default, set `ENV['PROGRESS']` to `true` to display it
   * [#692](https://github.com/toptal/chewy/issues/692): Add `.update_mapping` to Index class ([@Vitalina-Vakulchyk][]):
     * Wrapped Elasticsearch gem `.put_mapping` with `.update_mapping` in Index class
     * Add `rake chewy:update_mapping` task
