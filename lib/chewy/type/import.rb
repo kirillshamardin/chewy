@@ -181,20 +181,24 @@ module Chewy
             ::ActiveRecord::Base.connection.reconnect! if defined?(::ActiveRecord::Base)
             errors, import, leftovers = process_parallel_import_results(results)
 
-            if leftovers.present?
-              batches = leftovers.each_slice(routine.options[:batch_size])
-              results = ::Parallel.map_with_index(
-                batches,
-                routine.parallel_options,
-                &LEFTOVERS_WORKER.curry[self, routine.options, batches.size]
-              )
-              errors.concat(results.flatten(1))
-            end
+            execute_leftovers(leftovers, routine, self, errors)
 
             payload[:import] = import
             payload[:errors] = payload_errors(errors) if errors.present?
             payload[:errors]
           end
+        end
+
+        def execute_leftovers(leftovers, routine, self_object, errors)
+          return unless leftovers.present?
+
+          batches = leftovers.each_slice(routine.options[:batch_size])
+          results = ::Parallel.map_with_index(
+            batches,
+            routine.parallel_options,
+            &LEFTOVERS_WORKER.curry[self_object, routine.options, batches.size]
+          )
+          errors.concat(results.flatten(1))
         end
 
         def process_parallel_import_results(results)
