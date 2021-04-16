@@ -196,12 +196,7 @@ module Chewy
             original_index_settings suffixed_name
 
             delete if indexes.blank?
-            client.indices.update_aliases body: {actions: [
-              *indexes.map do |index|
-                {remove: {index: index, alias: general_name}}
-              end,
-              {add: {index: suffixed_name, alias: general_name}}
-            ]}
+            update_aliases(indexes, general_name, suffixed_name)
             client.indices.delete index: indexes if indexes.present?
 
             self.journal.apply(start_time, **import_options) if apply_journal
@@ -252,6 +247,15 @@ module Chewy
         end
 
       private
+
+        def update_aliases(indexes, general_name, suffixed_name)
+          client.indices.update_aliases body: {actions: [
+            *indexes.map do |index|
+              {remove: {index: index, alias: general_name}}
+            end,
+            {add: {index: suffixed_name, alias: general_name}}
+          ]}
+        end
 
         def optimize_index_settings(index_name)
           settings = {}
