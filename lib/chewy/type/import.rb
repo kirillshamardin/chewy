@@ -156,7 +156,8 @@ module Chewy
 
         def import_linear(objects, routine)
           ActiveSupport::Notifications.instrument 'import_objects.chewy', type: self do |payload|
-            progressbar = ProgressBar.create total: adapter.import_count(objects) if routine.options[:progressbar] == 'true'
+            progressbar = ProgressBar.create total: nil if routine.options[:progressbar] == 'true'
+            Thread.new { progressbar.total = adapter.import_count(objects) if progressbar }
             adapter.import(*objects, routine.options) do |action_objects|
               routine.process(**action_objects)
               begin
