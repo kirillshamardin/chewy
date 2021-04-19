@@ -182,8 +182,9 @@ module Chewy
 
           ActiveSupport::Notifications.instrument 'import_objects.chewy', type: self do |payload|
             batches = adapter.import_references(*objects, routine.options.slice(:batch_size)).to_a
+            progressbar = ProgressBar.create total: nil if routine.options[:progressbar] == 'true'
+            Thread.new { progressbar.total = adapter.import_count(objects) if progressbar }
 
-            progressbar = ProgressBar.create total: adapter.import_count(objects) if routine.options[:progressbar] == 'true'
             ::ActiveRecord::Base.connection.close if defined?(::ActiveRecord::Base)
             results = ::Parallel.map_with_index(
               batches,
